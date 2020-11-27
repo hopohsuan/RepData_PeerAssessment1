@@ -1,25 +1,88 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research Week 2 Project"
+author: "Po Hsuan Ho"
+date: "11/22/2020"
+output: html_document
 ---
 
-
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 
+```{r}
+setwd("C:/Users/PO HSUAN/Downloads")
+if (!file.exists("activity.csv") )
+    {
+     dlurl <- 'http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip'  
+     download.file(dlurl,destfile='repdata%2Fdata%2Factivity.zip',mode='wb')  
+     unzip('repdata%2Fdata%2Factivity.zip')
+    }
+Activity<-read.csv("activity.csv")
+head(Activity)
+```
 
-## What is the average daily activity pattern?
+Calculate the total number of steps taken per day
+Make a histogram of the total number of steps taken each day
+Calculate and report the mean and median of the total number of steps taken per day: mean=10766.19 median=10765
+```{r}
+r = getOption("repos")
+r["CRAN"] = "http://cran.us.r-project.org"
+options(repos = r)
+install.packages("ggplot2")
+library(ggplot2)
+stepPerDay<-aggregate(steps~date,Activity,sum)
+g<-ggplot(stepPerDay, aes(steps))
+g+geom_histogram(binwidth = 1000)
+mean(stepPerDay$steps)
+median(stepPerDay$steps)
+```
+Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps? 835
+```{r}
+stepPer5Min<-aggregate(steps~interval,Activity, mean)
+g2<-ggplot(stepPer5Min,aes(interval, steps))+geom_line()+labs(title="Average datily steps")
+g2
+stepPer5Min[stepPer5Min$steps==max(stepPer5Min$steps),]
+```
 
+Calculate and report the total number of missing values in the dataset: 2304
+Devise a strategy for filling in all of the missing values in the dataset. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
 
+Create a new dataset that is equal to the original dataset but with the missing data filled in.
 
-## Imputing missing values
+```{r}
+sum(is.na(Activity))
 
+noMissing<-Activity
+for(i in stepPer5Min$interval){
+  noMissing[noMissing$interval==i & is.na(noMissing$steps),]$steps<-stepPer5Min$steps[stepPer5Min$interval==i]}
+head(noMissing)
+sum(is.na(noMissing))
+```
+Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps? 
+The mean is the same but the median shifted by one after filling up the missing values.
+```{r}
+totalSteps<-aggregate(steps~date, data=Activity, sum)
+totalStepsNoMissing<-aggregate(steps~date, data=noMissing, sum)
+g3<-ggplot(aes(steps), data=totalSteps)+geom_histogram()
+g4<-ggplot(aes(steps), data=totalStepsNoMissing)+ geom_histogram()
+g3
+g4
+summary(totalSteps)
+summary(totalStepsNoMissing)
+```
+Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
 
+```{r}
+noMissing$date<-as.Date(noMissing$date)
+noMissing$day<-weekdays(noMissing$date)
+noMissing$week<-ifelse(noMissing$day=="Saturday"|noMissing$day=="Sunday","weekend", "weekday")
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
+```{r}
+avgStepWeek<-aggregate(steps~interval+week,noMissing,mean)
+g5<-ggplot(data=avgStepWeek, aes(colour=week, x=interval, y=steps))+geom_line()+labs(x="interval(1 interval = 5 mins)", y="steps", title="Avg. steps/weekdays or weekend")+facet_grid(week~.)
+g5
+```
